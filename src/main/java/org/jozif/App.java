@@ -227,16 +227,31 @@ public class App {
         int taskSize = taskUnitQueue.size();
         for (int i = 0; i < workerSize; i++) {
 //            Thread.sleep(200);
-            executor.submit(new Worker(taskUnitQueue, resultTaskUnitQueue, failureTaskUnitQueue, startConcurrencyTime, taskSize));
+            executor.submit(new Worker(taskUnitQueue, resultTaskUnitQueue, failureTaskUnitQueue));
         }
         executor.shutdown();
-
         //阻塞等待完成任务
         while (true) {
             if (executor.isTerminated()) {
                 long endTime = System.currentTimeMillis();
                 logger.info("all task completed! used time: " + Helper.timeAdapter((endTime - startTime) / 1000));
                 break;
+            } else {
+                int activeCount = executor.getActiveCount();
+                final long endTime = System.currentTimeMillis();
+                long usedSeond = (endTime - startConcurrencyTime) / 1000;
+//                int finishedTask = taskSize - taskUnitQueue.size();
+                long finishedTask = executor.getCompletedTaskCount();
+                double timePerTask = 1.0 * usedSeond / finishedTask;
+                double etaSecond = taskUnitQueue.size() * timePerTask;
+                String etaTime = Helper.timeAdapter(new Double(etaSecond).longValue());
+                Double progressRate = 1.0 * finishedTask / taskSize;
+                logger.info("[usedTime: "
+                        + Helper.timeAdapter(usedSeond)
+                        + "], [finished/all: " + finishedTask + "/" + taskSize
+                        + "], [eta: " + etaTime
+                        + "],[activeWorkerSize/workerSize:" + activeCount + "/" + workerSize
+                        + "], [progressRate: " + String.format("%.2f", progressRate * 100) + "%]");
             }
             Thread.sleep(1000);
         }

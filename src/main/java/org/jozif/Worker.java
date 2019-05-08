@@ -1,7 +1,6 @@
 package org.jozif;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.poi.ss.formula.functions.T;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -11,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -25,16 +23,10 @@ public class Worker implements Runnable {
 
     private ArrayBlockingQueue<TaskUnit> failureTaskUnitQueue;
 
-    private long startConcurrencyTime;
-
-    private int taskUnitQueueSize;
-
-    public Worker(ArrayBlockingQueue<TaskUnit> taskUnitQueue, ArrayBlockingQueue<TaskUnit> resultTaskUnitQueue, ArrayBlockingQueue<TaskUnit> failureTaskUnitQueue, long startConcurrencyTime, int taskUnitQueueSize) {
+    public Worker(ArrayBlockingQueue<TaskUnit> taskUnitQueue, ArrayBlockingQueue<TaskUnit> resultTaskUnitQueue, ArrayBlockingQueue<TaskUnit> failureTaskUnitQueue) {
         this.taskUnitQueue = taskUnitQueue;
         this.resultTaskUnitQueue = resultTaskUnitQueue;
         this.failureTaskUnitQueue = failureTaskUnitQueue;
-        this.startConcurrencyTime = startConcurrencyTime;
-        this.taskUnitQueueSize = taskUnitQueueSize;
     }
 
     @Override
@@ -88,34 +80,9 @@ public class Worker implements Runnable {
             taskUnit.setResultValuesSet(resultValuesSet);
             if (resultValuesSet.size() > 1) {
                 String logMessage = "task have multiple result value: " + taskUnit.toString();
-
-                //reverse customize rule to find basic form
-//                Iterator<String> it = resultValuesSet.iterator();
-//                while (it.hasNext()) {
-//                    String value = it.next();
-//                    for (CustomizeRuleUnit customizeRuleUnit : customizeRuleUnitList) {
-//                        String newSuffix = customizeRuleUnit.getNewSuffix();
-//                        if (value.endsWith(newSuffix)) {
-//                            it.remove();
-//                            logger.debug("[" + value + "], matched new suffix, redundant value, remove");
-//                            break;
-//                        }
-//                    }
-//                }
-
-//                logger.warn(logMessage + ", the final result is: " + resultValuesSet.toString());
                 logger.warn(logMessage);
             }
             resultTaskUnitQueue.add(taskUnit);
-            final long endTime = System.currentTimeMillis();
-            long usedSeond = (endTime - startConcurrencyTime) / 1000;
-            int finishedTask = taskUnitQueueSize - taskUnitQueue.size();
-            double timePerTask = 1.0 * usedSeond / finishedTask;
-            double etaSecond = taskUnitQueue.size() * timePerTask;
-            String etaTime = Helper.timeAdapter(new Double(etaSecond).longValue());
-            Double progressRate = 1.0 * finishedTask / taskUnitQueueSize;
-            logger.info("[usedTime: " + Helper.timeAdapter(usedSeond) + "], [finished/all: " + finishedTask + "/" + taskUnitQueueSize + "], [eta: " + etaTime + "], [progressRate: " + String.format("%.2f", progressRate * 100) + "%]");
-
         }
         logger.info("finished!");
     }
