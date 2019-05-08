@@ -100,6 +100,9 @@ public class App {
 
             suffix = customizeRulesSheetRow.getCell(0).getStringCellValue();
             newSuffix = customizeRulesSheetRow.getCell(1).getStringCellValue();
+
+            logger.info("suffix: " + suffix + ", newSuffix: " + newSuffix);
+
             if (StringUtils.isBlank(suffix)) {
                 continue;
             }
@@ -152,8 +155,6 @@ public class App {
             taskUnit.setRefinedValues(refinedValue);
         }
 
-        //对比 不规则动词变化表excel
-
         //匹配上不规则动词变化表的list
         ArrayBlockingQueue<TaskUnit> irregularVerbsMapMatchedTaskUnitList = initTaskQueue(taskUnitList, false);
         String irregularVerbsMapMatchedValue = null;
@@ -180,7 +181,6 @@ public class App {
             TaskUnit taskUnit = it.next();
             value = taskUnit.getValue();
             Set<String> translatedValuesSet = new HashSet<>();
-//            translatedValuesSet.add(value);
             for (int j = 0; j < customizeRuleUnitList.size(); j++) {
                 CustomizeRuleUnit customizeRuleUnit = customizeRuleUnitList.get(j);
                 suffix = customizeRuleUnit.getSuffix();
@@ -191,11 +191,13 @@ public class App {
                         int index = translatedValue.lastIndexOf(suffix);
                         translatedValue = translatedValue.substring(0, index);
                         translatedValue += newSuffix;
-//                        translatedValue = translatedValue.replaceAll(suffix, newSuffix);
                     } else {
                         translatedValue += newSuffix;
                     }
                     translatedValuesSet.add(translatedValue);
+                    logger.debug("[" + taskUnit.getValue() + "], statisfied with suffix: [" + suffix + "], translatedValue: [" + translatedValue + "], taskUnit: " + taskUnit.toString());
+                } else {
+                    logger.debug("[" + taskUnit.getValue() + "], not statisfied with suffix: [" + suffix + "]");
                 }
             }
             taskUnit.setTranslatedValuesSet(translatedValuesSet);
@@ -232,7 +234,7 @@ public class App {
         //阻塞等待完成任务
         while (true) {
             if (executor.isTerminated()) {
-                final long endTime = System.currentTimeMillis();
+                long endTime = System.currentTimeMillis();
                 logger.info("all task completed! used time: " + Helper.timeAdapter((endTime - startTime) / 1000));
                 break;
             }
@@ -253,6 +255,8 @@ public class App {
 
         //写入excel
         Helper.workBookWriteToFile(wb, taskExcelPath);
+
+        logger.info("result excel generated successfully! used time: " + Helper.timeAdapter((System.currentTimeMillis() - startTime) / 1000));
     }
 
     public static ArrayBlockingQueue<TaskUnit> initTaskQueue(List<TaskUnit> taskUnitList, boolean isLoad) {
