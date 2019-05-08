@@ -1,0 +1,39 @@
+# 线程数
+workersSize: 128
+
+irregularVerbsExcel:
+  # 不规则动词变化表excel名称
+  excelName: irregularVerbs.xlsx
+  #  excelName: application.yml
+  # 不规则动词变化表sheet名称
+  sheetName: irregularVerbs
+
+customizeRulesExcel:
+  # 不规则动词变化表excel名称
+  excelName: customizeRules.xlsx
+  # 不规则动词变化表sheet名称
+  sheetName: customizeRules
+
+taskExcel:
+  # 待处理单词excel名称
+  excelName: word.xlsx
+  # 待处理单词sheet名称
+  sheetName: word
+
+# 有多个结果是否显示多个结果(true/false)
+isshowMultiple: false
+
+# 符合自定义规则且字典不能查处来的词的颜色
+customizeRuleMatchedNotFoundInDictTaskColorInRGB: 0x87CEFA
+
+# 符合自定义规则且字典能查出来的词的颜色
+customizeRuleMatchedFoundInDictTaskColorInRGB: 0xB7DEFF
+
+# 不符合自定义规则且字典能查出来的词的颜色
+customizeRuleNotMatchedTaskColorInRGB: 0xA0EF02
+
+# 符合不规则动词变化表的词的颜色
+irregularVerbsMatchedTaskColorInRGB: 0xFFF202
+
+# 超时错误的词的颜色
+socketTimeoutTaskColorInRGB: 0xFF0000
