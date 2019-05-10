@@ -205,18 +205,18 @@ public class App {
             executor.submit(new Worker(taskUnitQueue, resultTaskUnitQueue, failureTaskUnitQueue));
         }
         executor.shutdown();
+
+        long usedSeond = (System.currentTimeMillis() - startConcurrencyTime) / 1000;
         //阻塞等待完成任务
-        while (true) {
+        while (usedSeond < APP_TIMEOUT_MINUTE * 60) {
             if (executor.isTerminated()) {
                 long endTime = System.currentTimeMillis();
                 logger.info("all task completed! used time: " + Helper.timeAdapter((endTime - startTime) / 1000));
                 break;
             } else {
                 int activeCount = executor.getActiveCount();
-                final long endTime = System.currentTimeMillis();
-                long usedSeond = (endTime - startConcurrencyTime) / 1000;
+                usedSeond = (System.currentTimeMillis() - startConcurrencyTime) / 1000;
                 int finishedTask = taskSize - taskUnitQueue.size();
-//                long finishedTask = executor.getCompletedTaskCount();
                 double timePerTask = 1.0 * usedSeond / finishedTask;
                 double etaSecond = taskUnitQueue.size() * timePerTask;
                 String etaTime = Helper.timeAdapter(new Double(etaSecond).longValue());
@@ -229,6 +229,12 @@ public class App {
                         + "], [progressRate: " + String.format("%.2f", progressRate * 100) + "%]");
             }
             Thread.sleep(1000);
+        }
+        //线程中的任务还没有结束
+        if (!executor.isTerminated()) {
+            //强制关闭所有正在进行的进程
+            executor.shutdownNow();
+            logger.warn("Use time has exceeded the APP_TIMEOUT_MINUTE(" + APP_TIMEOUT_MINUTE + "), terminated all thread, completed task write to excel");
         }
 
         //符合自定义规则的词写入workbook
@@ -243,6 +249,16 @@ public class App {
         //超时错误的词写入workbook
         wb = Helper.taskUnitQueueWriteExcel(failureTaskUnitQueue, wb, TASK_EXCEL_SHEET_NAME, SOCKET_TIMEOUT_TASK_TYPE);
 
+        //规定时间内没有执行完的任务写入workbook
+        wb = Helper.taskUnitQueueWriteExcel(taskUnitQueue, wb, TASK_EXCEL_SHEET_NAME, APP_TIMEOUT_TASK_TYPE);
+
+
+        //清空taskUnitQueue
+        while (taskUnitQueue.size() > 0) {
+            TaskUnit taskUnit = taskUnitQueue.poll();
+            logger.warn("unfinished task: " + taskUnit.toString());
+        }
+
         //增加图例
         wb = polishWorkBookBeforeGenerate(wb);
 
@@ -250,6 +266,7 @@ public class App {
         Helper.workBookWriteToFile(wb, RESULT_EXCEL_NAME);
 
         logger.info("result excel generated successfully! used time: " + Helper.timeAdapter((System.currentTimeMillis() - startTime) / 1000));
+        System.exit(0);
     }
 
     public static ArrayBlockingQueue<TaskUnit> initTaskQueue(List<TaskUnit> taskUnitList, boolean isLoad) {

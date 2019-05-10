@@ -104,6 +104,19 @@ public class Helper {
                 cell.setCellStyle(backgroundStyle);
             }
         }
+
+        //规定时间内没有执行完的任务
+        if (APP_TIMEOUT_TASK_TYPE == TYPE) {
+            //规定时间内没有执行完的任务 color socketTimeoutTaskColorInRGB
+            backgroundStyle.setFillForegroundColor(new XSSFColor(new java.awt.Color(APP_TIMEOUT_TASK_COLOR_IN_RGB)));
+            for (TaskUnit taskUnit : taskUnitQueue) {
+                Row row = sheet.getRow(taskUnit.getExcelRowNumber() - 1);
+                Cell cell = row.createCell(1);
+                cell.setCellValue(taskUnit.getValue());
+                cell.setCellStyle(backgroundStyle);
+            }
+        }
+
         //符合自定义规则的词
         if (CUSTOMIZE_RULE_MATCHED_TASK_TYPE == TYPE) {
             for (TaskUnit taskUnit : taskUnitQueue) {
@@ -147,7 +160,7 @@ public class Helper {
 
     public static void workBookWriteToFile(Workbook wb, String resultFileName) throws IOException {
         LocalDateTime localDateTime = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyymmddHHmmss");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM.dd_HH.mm.ss");
         String timestampString = formatter.format(localDateTime);
         String fullFilePath = RESULT_FILE_PATH + timestampString + "_" + resultFileName;
 
@@ -182,7 +195,7 @@ public class Helper {
         cell0.setCellValue("符合自定义规则且字典不能查出来的词的颜色");
         cell0.setCellStyle(backgroundStyle0);
 
-        Row row1 = legendSheet.createRow(0 + 1);
+        Row row1 = legendSheet.createRow(1);
         XSSFCellStyle backgroundStyle1 = (XSSFCellStyle) wb.createCellStyle();
         backgroundStyle1.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         backgroundStyle1.setFillForegroundColor(new XSSFColor(new java.awt.Color(CUSTOMIZE_RULE_MATCHED_FOUND_IN_DICT_TASK_COLOR_IN_RGB)));
@@ -190,7 +203,7 @@ public class Helper {
         cell1.setCellValue("符合自定义规则且字典能查出来的词的颜色");
         cell1.setCellStyle(backgroundStyle1);
 
-        Row row2 = legendSheet.createRow(0 + 2);
+        Row row2 = legendSheet.createRow(2);
         XSSFCellStyle backgroundStyle2 = (XSSFCellStyle) wb.createCellStyle();
         backgroundStyle2.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         backgroundStyle2.setFillForegroundColor(new XSSFColor(new java.awt.Color(SOCKET_TIMEOUT_TASK_COLOR_IN_RGB)));
@@ -198,7 +211,7 @@ public class Helper {
         cell2.setCellValue("超时错误的词的颜色");
         cell2.setCellStyle(backgroundStyle2);
 
-        Row row3 = legendSheet.createRow(0 + 3);
+        Row row3 = legendSheet.createRow(3);
         XSSFCellStyle backgroundStyle3 = (XSSFCellStyle) wb.createCellStyle();
         backgroundStyle3.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         backgroundStyle3.setFillForegroundColor(new XSSFColor(new java.awt.Color(CUSTOMIZE_RULE_NOT_MATCHED_TASK_COLOR_IN_RGB)));
@@ -206,8 +219,7 @@ public class Helper {
         cell3.setCellStyle(backgroundStyle3);
         cell3.setCellValue("不符合自定义规则且字典能查出来的词的颜色");
 
-
-        Row row4 = legendSheet.createRow(0 + 4);
+        Row row4 = legendSheet.createRow(4);
         XSSFCellStyle backgroundStyle4 = (XSSFCellStyle) wb.createCellStyle();
         backgroundStyle4.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         backgroundStyle4.setFillForegroundColor(new XSSFColor(new java.awt.Color(IRREGULAR_VERBS_MATCHED_TASK_COLOR_IN_RGB)));
@@ -215,13 +227,21 @@ public class Helper {
         cell4.setCellValue("符合不规则动词变化表的词的颜色");
         cell4.setCellStyle(backgroundStyle4);
 
-        Row row5 = legendSheet.createRow(0 + 5);
+        Row row5 = legendSheet.createRow(5);
         XSSFCellStyle backgroundStyle5 = (XSSFCellStyle) wb.createCellStyle();
         backgroundStyle5.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         backgroundStyle5.setFillForegroundColor(new XSSFColor(new java.awt.Color(UNKNOWN_TASK_COLOR_IN_RGB)));
         Cell cell5 = row5.createCell(0);
         cell5.setCellValue("其他错误的颜色");
         cell5.setCellStyle(backgroundStyle5);
+
+        Row row6 = legendSheet.createRow(6);
+        XSSFCellStyle backgroundStyle6 = (XSSFCellStyle) wb.createCellStyle();
+        backgroundStyle6.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        backgroundStyle6.setFillForegroundColor(new XSSFColor(new java.awt.Color(APP_TIMEOUT_TASK_COLOR_IN_RGB)));
+        Cell cell6 = row6.createCell(0);
+        cell6.setCellValue("规定时间内没有执行完的任务的颜色");
+        cell6.setCellStyle(backgroundStyle6);
 
         legendSheet.autoSizeColumn(0, true);
         int legendSheetIndex = wb.getSheetIndex(legendSheet);
@@ -278,13 +298,21 @@ public class Helper {
         UNKNOWN_TASK_COLOR_IN_RGB = (Integer) yamlProperties.get("UNKNOWN_TASK_COLOR_IN_RGB");
         logger.info("UNKNOWN_TASK_COLOR_IN_RGB: " + UNKNOWN_TASK_COLOR_IN_RGB);
 
+        //规定时间内没有执行完的任务的颜色
+        APP_TIMEOUT_TASK_COLOR_IN_RGB = (Integer) yamlProperties.get("APP_TIMEOUT_TASK_COLOR_IN_RGB");
+        logger.info("APP_TIMEOUT_TASK_COLOR_IN_RGB: " + APP_TIMEOUT_TASK_COLOR_IN_RGB);
+
         //jsoup超时时间（秒）
-        TIMEOUT_SECOND = (Integer) yamlProperties.get("TIMEOUT_SECOND");
-        logger.info("TIMEOUT_SECOND: " + TIMEOUT_SECOND);
+        JSOUP_TIMEOUT_SECOND = (Integer) yamlProperties.get("JSOUP_TIMEOUT_SECOND");
+        logger.info("JSOUP_TIMEOUT_SECOND: " + JSOUP_TIMEOUT_SECOND);
 
         //读启用线程数相关配置信息
         WORKER_SIZE = (Integer) yamlProperties.get("WORKER_SIZE");
         logger.info("WORKER_SIZE: " + WORKER_SIZE);
+
+        //程序运行超时时间（分钟）
+        APP_TIMEOUT_MINUTE = (Integer) yamlProperties.get("APP_TIMEOUT_MINUTE");
+        logger.info("APP_TIMEOUT_MINUTE: " + APP_TIMEOUT_MINUTE);
 
         //读动词不规则变化表相关配置信息
         LinkedHashMap irregularVerbsExcelInfo = (LinkedHashMap) yamlProperties.get("IRREGULAR_VERBS_EXCEL");
@@ -307,14 +335,17 @@ public class Helper {
         TASK_EXCEL_SHEET_NAME = (String) taskExcelInfo.get("SHEET_NAME");
         logger.info("TASK_EXCEL_SHEET_NAME: " + TASK_EXCEL_SHEET_NAME);
 
-        //读结果excel sheet 名称
-        RESULT_EXCEL_SHEET_NAME = (String) yamlProperties.get("RESULT_EXCEL_SHEET_NAME");
+        //读待处理任务单词相关配置信息
+        LinkedHashMap resultExcelInfo = (LinkedHashMap) yamlProperties.get("RESULT_EXCEL");
+        RESULT_EXCEL_NAME = (String) resultExcelInfo.get("EXCEL_NAME");
+        logger.info("RESULT_EXCEL_NAME: " + RESULT_EXCEL_NAME);
+        RESULT_EXCEL_SHEET_NAME = (String) resultExcelInfo.get("SHEET_NAME");
         logger.info("RESULT_EXCEL_SHEET_NAME: " + RESULT_EXCEL_SHEET_NAME);
 
-        //读结果excel名称
-        RESULT_EXCEL_NAME = (String) yamlProperties.get("RESULT_EXCEL_NAME");
-        logger.info("RESULT_EXCEL_NAME: " + RESULT_EXCEL_NAME);
     }
+
+    //程序运行超时时间（分钟）
+    public static int APP_TIMEOUT_MINUTE = 10;
 
     //结果excel名称
     public static String RESULT_EXCEL_NAME = "";
@@ -343,7 +374,7 @@ public class Helper {
     public static int WORKER_SIZE = 1;
 
     //jsoup超时时间（秒）
-    public static int TIMEOUT_SECOND = 10;
+    public static int JSOUP_TIMEOUT_SECOND = 10;
 
     //不符合自定义规则且字典能查出来的词的颜色
     public static int CUSTOMIZE_RULE_NOT_MATCHED_TASK_COLOR_IN_RGB = 0x000000;
@@ -363,6 +394,9 @@ public class Helper {
     //其他错误的颜色
     public static int UNKNOWN_TASK_COLOR_IN_RGB = 0x000000;
 
+    //规定时间内没有执行完的任务的颜色
+    public static int APP_TIMEOUT_TASK_COLOR_IN_RGB = 0x000000;
+
     //读是否显示多个结果相关配置信息
     public static boolean IS_SHOW_MULTIPLE_RESULT = true;
 
@@ -377,4 +411,7 @@ public class Helper {
 
     //超时错误的词的类型代码
     public static final int SOCKET_TIMEOUT_TASK_TYPE = 4;
+
+    //规定时间内没有执行完的任务的类型代码
+    public static final int APP_TIMEOUT_TASK_TYPE = 5;
 }

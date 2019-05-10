@@ -13,7 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 
-import static org.jozif.Helper.TIMEOUT_SECOND;
+import static org.jozif.Helper.JSOUP_TIMEOUT_SECOND;
 
 public class Worker implements Runnable {
 
@@ -52,7 +52,7 @@ public class Worker implements Runnable {
                 try {
                     Document doc = Jsoup.connect(url)
                             .userAgent(ua)
-                            .timeout(TIMEOUT_SECOND * 1000)
+                            .timeout(JSOUP_TIMEOUT_SECOND * 1000)
                             .get();
                     if (doc.text().contains("mispelled-word")) {
                         //word not exist

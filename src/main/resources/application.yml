@@ -1,10 +1,15 @@
 # 线程数
 WORKER_SIZE: 256
 
+# jsoup超时时间（秒）
+JSOUP_TIMEOUT_SECOND: 10
+
+# 程序运行超时时间（分钟）
+APP_TIMEOUT_MINUTE: 10
+
 IRREGULAR_VERBS_EXCEL:
   # 不规则动词变化表excel名称
   EXCEL_NAME: irregularVerbs.xlsx
-  #  EXCEL_NAME: application.yml
   # 不规则动词变化表sheet名称
   SHEET_NAME: irregularVerbs
 
@@ -20,17 +25,14 @@ TASK_EXCEL:
   # 待处理单词sheet名称
   SHEET_NAME: word
 
-# 结果excel名称
-RESULT_EXCEL_NAME: result.xlsx
-
-# 结果excel sheet名称
-RESULT_EXCEL_SHEET_NAME: result
+RESULT_EXCEL:
+  # 结果excel名称
+  EXCEL_NAME: result.xlsx
+  # 结果excel sheet名称
+  SHEET_NAME: result
 
 # 有多个结果是否显示多个结果(true/false，默认true)
 IS_SHOW_MULTIPLE_RESULT: false
-
-# jsoup超时时间（秒）
-TIMEOUT_SECOND: 10
 
 # 符合自定义规则且字典不能查出来的词的颜色（默认黑色0x000000）
 # 黄色
@@ -54,3 +56,7 @@ IRREGULAR_VERBS_MATCHED_TASK_COLOR_IN_RGB: 0x66FF66
 # 其他错误的颜色（默认黑色0x000000）
 # 粉色
 UNKNOWN_TASK_COLOR_IN_RGB: 0xFF66B2
+
+# 规定时间内没有执行完的任务的颜色（默认黑色0x000000）
+# 淡紫色
+APP_TIMEOUT_TASK_COLOR_IN_RGB: 0xE5CCFF
