@@ -243,8 +243,11 @@ public class App {
         //超时错误的词写入workbook
         wb = Helper.taskUnitQueueWriteExcel(failureTaskUnitQueue, wb, TASK_EXCEL_SHEET_NAME, SOCKET_TIMEOUT_TASK_TYPE);
 
+        //增加图例
+        wb = polishWorkBookBeforeGenerate(wb);
+
         //写入excel
-        Helper.workBookWriteToFile(wb, TASK_EXCEL_NAME);
+        Helper.workBookWriteToFile(wb, RESULT_EXCEL_NAME);
 
         logger.info("result excel generated successfully! used time: " + Helper.timeAdapter((System.currentTimeMillis() - startTime) / 1000));
     }
