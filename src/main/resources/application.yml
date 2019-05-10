@@ -1,39 +1,45 @@
 # 线程数
-workersSize: 128
+WORKER_SIZE: 256
 
-irregularVerbsExcel:
+IRREGULAR_VERBS_EXCEL:
   # 不规则动词变化表excel名称
-  excelName: irregularVerbs.xlsx
-  #  excelName: application.yml
+  EXCEL_NAME: irregularVerbs.xlsx
+  #  EXCEL_NAME: application.yml
   # 不规则动词变化表sheet名称
-  sheetName: irregularVerbs
+  SHEET_NAME: irregularVerbs
 
-customizeRulesExcel:
+CUSTOMIZE_RULES_EXCEL:
   # 不规则动词变化表excel名称
-  excelName: customizeRules.xlsx
+  EXCEL_NAME: customizeRules.xlsx
   # 不规则动词变化表sheet名称
-  sheetName: customizeRules
+  SHEET_NAME: customizeRules
 
-taskExcel:
+TASK_EXCEL:
   # 待处理单词excel名称
-  excelName: word.xlsx
+  EXCEL_NAME: word.xlsx
   # 待处理单词sheet名称
-  sheetName: word
+  SHEET_NAME: word
 
-# 有多个结果是否显示多个结果(true/false)
-isshowMultiple: false
+# 有多个结果是否显示多个结果(true/false，默认true)
+IS_SHOW_MULTIPLE_RESULT: false
 
-# 符合自定义规则且字典不能查处来的词的颜色
-customizeRuleMatchedNotFoundInDictTaskColorInRGB: 0x87CEFA
+# jsoup超时时间（秒）
+TIMEOUT_SECOND: 10
 
-# 符合自定义规则且字典能查出来的词的颜色
-customizeRuleMatchedFoundInDictTaskColorInRGB: 0xB7DEFF
+# 符合自定义规则且字典不能查处来的词的颜色（默认黑色0x000000）
+CUSTOMIZE_RULE_MATCHED_NOT_FOUND_IN_DICT_TASK_COLOR_IN_RGB: 0x87CEFA
 
-# 不符合自定义规则且字典能查出来的词的颜色
-customizeRuleNotMatchedTaskColorInRGB: 0xA0EF02
+# 符合自定义规则且字典能查出来的词的颜色（默认黑色0x000000）
+CUSTOMIZE_RULE_MATCHED_FOUND_IN_DICT_TASK_COLOR_IN_RGB: 0xB7DEFF
 
-# 符合不规则动词变化表的词的颜色
-irregularVerbsMatchedTaskColorInRGB: 0xFFF202
+# 超时错误的词的颜色（默认黑色0x000000）
+SOCKET_TIMEOUT_TASK_COLOR_IN_RGB: 0xFF0000
 
-# 超时错误的词的颜色
-socketTimeoutTaskColorInRGB: 0xFF0000
+# 不符合自定义规则且字典能查出来的词的颜色（默认黑色0x000000）
+CUSTOMIZE_RULE_NOT_MATCHED_TASK_COLOR_IN_RGB: 0xA0EF02
+
+# 符合不规则动词变化表的词的颜色（默认黑色0x000000）
+IRREGULAR_VERBS_MATCHED_TASK_COLOR_IN_RGB: 0xFFF202
+
+# 其他错误的颜色（默认黑色0x000000）
+UNKNOWN_TASK_COLOR_IN_RGB: 0x00FFFF

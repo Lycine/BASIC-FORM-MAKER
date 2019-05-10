@@ -24,40 +24,14 @@ public class App {
         //开始时间
         final long startTime = System.currentTimeMillis();
 
+        //读配置文件
+        Helper.loadProperties();
+
         //读YAML配置文件
         LinkedHashMap yamlProperties = Helper.readYAML();
 
-        //读启用线程数相关配置信息
-        Integer workerSize = 1;
-        workerSize = (Integer) yamlProperties.get("workersSize");
-        logger.info("workersSize: " + workerSize);
-
-        //读动词不规则变化表相关配置信息
-        LinkedHashMap irregularVerbsExcelInfo = (LinkedHashMap) yamlProperties.get("irregularVerbsExcel");
-        String irregularVerbsExcelPath = (String) irregularVerbsExcelInfo.get("excelName");
-        logger.info("irregularVerbsExcelPath: " + irregularVerbsExcelPath);
-        String irregularVerbsExcelSheetName = (String) irregularVerbsExcelInfo.get("sheetName");
-        logger.info("irregularVerbsExcelSheetName: " + irregularVerbsExcelSheetName);
-
-        //读自定义规则相关配置信息
-        LinkedHashMap customizeRulesExcelInfo = (LinkedHashMap) yamlProperties.get("customizeRulesExcel");
-
-        URL url = App.class.getClassLoader().getResource("conf.properties");
-        String customizeRulesExcelPath = (String) customizeRulesExcelInfo.get("excelName");
-
-        logger.info("customizeRulesExcelPath: " + customizeRulesExcelPath);
-        String customizeRulesExcelSheetName = (String) customizeRulesExcelInfo.get("sheetName");
-        logger.info("customizeRulesExcelSheetName: " + customizeRulesExcelSheetName);
-
-        //读待处理任务单词相关配置信息
-        LinkedHashMap taskExcelInfo = (LinkedHashMap) yamlProperties.get("taskExcel");
-        String taskExcelPath = (String) taskExcelInfo.get("excelName");
-        logger.info("taskExcelPath: " + taskExcelPath);
-        String taskExcelSheetName = (String) taskExcelInfo.get("sheetName");
-        logger.info("taskExcelSheetName: " + taskExcelSheetName);
-
         //读不规则变化表excel入内存
-        Sheet irregularVerbsSheet = Helper.getSheetFormExcelByPathAndName(irregularVerbsExcelPath, irregularVerbsExcelSheetName);
+        Sheet irregularVerbsSheet = Helper.getSheetFormExcelByPathAndName(IRREGULAR_VERBS_EXCEL_NAME, IRREGULAR_VERBS_EXCEL_SHEET_NAME);
         Map<String, String> irregularVerbsMap = new HashMap<>();
         String irregularVerbsForm;
         String basicFOrm;
@@ -82,7 +56,7 @@ public class App {
         logger.info("irregular verbs list loaded successfully! irregular verbs list size: " + irregularVerbsMap.size());
 
         //读取自定义规则excel入内存
-        Sheet customizeRulesSheet = Helper.getSheetFormExcelByPathAndName(customizeRulesExcelPath, customizeRulesExcelSheetName);
+        Sheet customizeRulesSheet = Helper.getSheetFormExcelByPathAndName(CUSTOMIZE_RULES_EXCEL_NAME, CUSTOMIZE_RULES_EXCEL_SHEET_NAME);
         List<CustomizeRuleUnit> customizeRuleUnitList = new ArrayList<>();
         Row customizeRulesSheetRow;
         String suffix;
@@ -101,6 +75,7 @@ public class App {
             suffix = customizeRulesSheetRow.getCell(0).getStringCellValue();
             newSuffix = customizeRulesSheetRow.getCell(1).getStringCellValue();
 
+            //自定义excel读取到的内容
             logger.info("suffix: " + suffix + ", newSuffix: " + newSuffix);
 
             if (StringUtils.isBlank(suffix)) {
@@ -121,7 +96,7 @@ public class App {
         logger.info("customize rule list loaded successfully! customize rule list size: " + customizeRuleUnitList.size());
 
         //读取待处理单词excel入内存
-        Sheet taskSheet = Helper.getSheetFormExcelByPathAndName(taskExcelPath, taskExcelSheetName);
+        Sheet taskSheet = Helper.getSheetFormExcelByPathAndName(TASK_EXCEL_NAME, TASK_EXCEL_SHEET_NAME);
         List<TaskUnit> taskUnitList = new ArrayList<>();
         Row taskSheetRow;
         String value;
@@ -140,7 +115,7 @@ public class App {
             }
 
 
-            logger.debug("taskExcelSheetName: " + taskExcelSheetName + ", rowNumber: " + (i + 1) + ", cell value: " + value);
+            logger.debug("taskExcelSheetName: " + TASK_EXCEL_SHEET_NAME + ", rowNumber: " + (i + 1) + ", cell value: " + value);
             TaskUnit taskUnit = new TaskUnit(i + 1, value);
             taskUnitList.add(taskUnit);
         }
@@ -195,13 +170,13 @@ public class App {
                         translatedValue += newSuffix;
                     }
                     translatedValuesSet.add(translatedValue);
-                    logger.debug("[" + taskUnit.getValue() + "], statisfied with suffix: [" + suffix + "], translatedValue: [" + translatedValue + "], taskUnit: " + taskUnit.toString());
+                    logger.debug("[" + taskUnit.getValue() + "], statisfied with suffix: [" + suffix + "]");
                 } else {
                     logger.debug("[" + taskUnit.getValue() + "], not statisfied with suffix: [" + suffix + "]");
                 }
             }
             taskUnit.setTranslatedValuesSet(translatedValuesSet);
-
+            logger.debug("[" + taskUnit.getValue() + "], translatedValuesSet: [" + translatedValuesSet + "], taskUnit: " + taskUnit.toString());
             //不满足自定义规则的词放入单独的list
             if (translatedValuesSet.size() == 0) {
                 customizeRuleUnitNotMatchedTaskUnidList.add(taskUnit);
@@ -214,18 +189,18 @@ public class App {
         ArrayBlockingQueue<TaskUnit> failureTaskUnitQueue = initTaskQueue(taskUnitList, false);
         //定义了1个核心线程数，最大线程数1个，队列长度2个s
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                workerSize,
-                workerSize,
+                WORKER_SIZE,
+                WORKER_SIZE,
                 200,
                 TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(workerSize),
+                new ArrayBlockingQueue<Runnable>(WORKER_SIZE),
                 new ThreadPoolExecutor.AbortPolicy() //创建线程大于上限，抛出RejectedExecutionException异常
         );
 
         //创建线程
         final long startConcurrencyTime = System.currentTimeMillis();
         int taskSize = taskUnitQueue.size();
-        for (int i = 0; i < workerSize; i++) {
+        for (int i = 0; i < WORKER_SIZE; i++) {
 //            Thread.sleep(200);
             executor.submit(new Worker(taskUnitQueue, resultTaskUnitQueue, failureTaskUnitQueue));
         }
@@ -240,8 +215,8 @@ public class App {
                 int activeCount = executor.getActiveCount();
                 final long endTime = System.currentTimeMillis();
                 long usedSeond = (endTime - startConcurrencyTime) / 1000;
-//                int finishedTask = taskSize - taskUnitQueue.size();
-                long finishedTask = executor.getCompletedTaskCount();
+                int finishedTask = taskSize - taskUnitQueue.size();
+//                long finishedTask = executor.getCompletedTaskCount();
                 double timePerTask = 1.0 * usedSeond / finishedTask;
                 double etaSecond = taskUnitQueue.size() * timePerTask;
                 String etaTime = Helper.timeAdapter(new Double(etaSecond).longValue());
@@ -250,26 +225,26 @@ public class App {
                         + Helper.timeAdapter(usedSeond)
                         + "], [finished/all: " + finishedTask + "/" + taskSize
                         + "], [eta: " + etaTime
-                        + "],[activeWorkerSize/workerSize:" + activeCount + "/" + workerSize
+                        + "],[activeWorkerSize/workerSize:" + activeCount + "/" + WORKER_SIZE
                         + "], [progressRate: " + String.format("%.2f", progressRate * 100) + "%]");
             }
             Thread.sleep(1000);
         }
 
         //符合自定义规则的词写入workbook
-        Workbook wb = Helper.taskUnitQueueWriteExcel(resultTaskUnitQueue, getWorkbookFormExcelByPath(taskExcelPath), taskExcelSheetName, CUSTOMIZE_RULE_MATCHED_TASK_TYPE);
+        Workbook wb = Helper.taskUnitQueueWriteExcel(resultTaskUnitQueue, getWorkbookFormExcelByPath(TASK_EXCEL_NAME), TASK_EXCEL_SHEET_NAME, CUSTOMIZE_RULE_MATCHED_TASK_TYPE);
 
         //符合不规则动词变化表的词写入workbook
-        wb = Helper.taskUnitQueueWriteExcel(irregularVerbsMapMatchedTaskUnitList, wb, taskExcelSheetName, IRREGULAR_VERBS_MATCHED_TASK_TYPE);
+        wb = Helper.taskUnitQueueWriteExcel(irregularVerbsMapMatchedTaskUnitList, wb, TASK_EXCEL_SHEET_NAME, IRREGULAR_VERBS_MATCHED_TASK_TYPE);
 
         //不符合符合自定义规则的词写入workbook
-        wb = Helper.taskUnitQueueWriteExcel(customizeRuleUnitNotMatchedTaskUnidList, wb, taskExcelSheetName, CUSTOMIZE_RULE_NOT_MATCHED_TASK_TYPE);
+        wb = Helper.taskUnitQueueWriteExcel(customizeRuleUnitNotMatchedTaskUnidList, wb, TASK_EXCEL_SHEET_NAME, CUSTOMIZE_RULE_NOT_MATCHED_TASK_TYPE);
 
         //超时错误的词写入workbook
-        wb = Helper.taskUnitQueueWriteExcel(failureTaskUnitQueue, wb, taskExcelSheetName, SOCKET_TIMEOUT_TASK_TYPE);
+        wb = Helper.taskUnitQueueWriteExcel(failureTaskUnitQueue, wb, TASK_EXCEL_SHEET_NAME, SOCKET_TIMEOUT_TASK_TYPE);
 
         //写入excel
-        Helper.workBookWriteToFile(wb, taskExcelPath);
+        Helper.workBookWriteToFile(wb, TASK_EXCEL_NAME);
 
         logger.info("result excel generated successfully! used time: " + Helper.timeAdapter((System.currentTimeMillis() - startTime) / 1000));
     }
