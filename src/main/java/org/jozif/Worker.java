@@ -41,6 +41,8 @@ public class Worker implements Runnable {
             if (null == taskUnit) {
                 logger.info("task is null, taskUnitQueue size: " + taskUnitQueue.size());
                 continue;
+            } else {
+                logger.info("task is not null, taskUnitQueue size: " + taskUnitQueue.size() + ", taskUnit: " + taskUnit);
             }
             Set<String> translatedValuesSet = taskUnit.getTranslatedValuesSet();
             Set<String> resultValuesSet = new HashSet<>();
@@ -48,6 +50,7 @@ public class Worker implements Runnable {
                 //find in online dictionary
                 String url = "https://www.merriam-webster.com/dictionary/" + translatedValue;
                 logger.info("request url: " + url);
+                logger.debug("request url: " + url + ", taskUnit: " + taskUnit.toString());
                 String ua = "User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1";
                 try {
                     Document doc = Jsoup.connect(url)

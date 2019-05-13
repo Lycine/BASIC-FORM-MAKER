@@ -27,9 +27,6 @@ public class App {
         //读配置文件
         Helper.loadProperties();
 
-        //读YAML配置文件
-        LinkedHashMap yamlProperties = Helper.readYAML();
-
         //读不规则变化表excel入内存
         Sheet irregularVerbsSheet = Helper.getSheetFormExcelByPathAndName(IRREGULAR_VERBS_EXCEL_NAME, IRREGULAR_VERBS_EXCEL_SHEET_NAME);
         Map<String, String> irregularVerbsMap = new HashMap<>();
@@ -201,7 +198,6 @@ public class App {
         final long startConcurrencyTime = System.currentTimeMillis();
         int taskSize = taskUnitQueue.size();
         for (int i = 0; i < WORKER_SIZE; i++) {
-//            Thread.sleep(200);
             executor.submit(new Worker(taskUnitQueue, resultTaskUnitQueue, failureTaskUnitQueue));
         }
         executor.shutdown();
