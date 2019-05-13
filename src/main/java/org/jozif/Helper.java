@@ -1,5 +1,6 @@
 package org.jozif;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFCellStyle;
 import org.apache.poi.xssf.usermodel.XSSFColor;
@@ -13,9 +14,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 
 public class Helper {
@@ -260,6 +259,193 @@ public class Helper {
         return result;
     }
 
+    public static ArrayBlockingQueue<TaskUnit> initTaskQueue(List<TaskUnit> taskUnitList, boolean isLoad) {
+        logger.info("start initialize task queue");
+
+        //initialize task
+        ArrayBlockingQueue<TaskUnit> tasks = new ArrayBlockingQueue<>(taskUnitList.size());
+        if (isLoad) {
+            for (TaskUnit taskUnit : taskUnitList) {
+                tasks.add(taskUnit);
+            }
+            logger.info("task queue loaded success!");
+        }
+
+        logger.info("task queue has been initialized, taskSize: " + tasks.size());
+        return tasks;
+    }
+
+    //读不规则变化表excel入内存
+    public static Map<String, String> loadIrregularVerbsSheet() throws Exception {
+        Sheet irregularVerbsSheet = Helper.getSheetFormExcelByPathAndName(IRREGULAR_VERBS_EXCEL_NAME, IRREGULAR_VERBS_EXCEL_SHEET_NAME);
+        Map<String, String> irregularVerbsMap = new HashMap<>();
+        String irregularVerbsForm;
+        String basicFOrm;
+        String refinedIrregularVerbsForm;
+        String refinedBasicFOrm;
+        Row irregularVerbsSheetRow;
+        for (int i = 0; i < irregularVerbsSheet.getLastRowNum() - 1; i++) {
+            irregularVerbsSheetRow = irregularVerbsSheet.getRow(i);
+            if (irregularVerbsSheetRow == null) {
+                continue;
+            }
+            //读第一列,第i行单元格内容
+            irregularVerbsSheetRow.getCell(0).setCellType(CellType.STRING);//设置读取转String类型
+            irregularVerbsForm = irregularVerbsSheetRow.getCell(0).getStringCellValue();//不规则变化后的形式
+            basicFOrm = irregularVerbsSheetRow.getCell(1).getStringCellValue();//对应原形
+            refinedIrregularVerbsForm = irregularVerbsForm.trim().toLowerCase();
+            refinedBasicFOrm = basicFOrm.trim().toLowerCase();
+            logger.debug("excel row number: " + (i + 1) + ", refinedIrregularVerbsForm: " + refinedIrregularVerbsForm + ", refinedBasicFOrm: " + refinedBasicFOrm);
+            //不规则动词table
+            irregularVerbsMap.put(refinedIrregularVerbsForm, refinedBasicFOrm);
+        }
+        logger.info("irregular verbs list loaded successfully! irregular verbs list size: " + irregularVerbsMap.size());
+        return irregularVerbsMap;
+    }
+
+    //读取自定义规则excel入内存
+    public static List<CustomizeRuleUnit> loadCustomizeRulesSheet() throws Exception {
+        Sheet customizeRulesSheet = Helper.getSheetFormExcelByPathAndName(CUSTOMIZE_RULES_EXCEL_NAME, CUSTOMIZE_RULES_EXCEL_SHEET_NAME);
+        List<CustomizeRuleUnit> customizeRuleUnitList = new ArrayList<>();
+        Row customizeRulesSheetRow;
+        String suffix;
+        String newSuffix;
+        for (int i = 1; i < customizeRulesSheet.getLastRowNum(); i++) {
+            customizeRulesSheetRow = customizeRulesSheet.getRow(i);
+            if (customizeRulesSheetRow == null) {
+                continue;
+            }
+            if (customizeRulesSheetRow.getCell(0) == null) {
+                continue;
+            }
+            customizeRulesSheetRow.getCell(0).setCellType(CellType.STRING);
+            customizeRulesSheetRow.getCell(1).setCellType(CellType.STRING);
+
+            suffix = customizeRulesSheetRow.getCell(0).getStringCellValue();
+            newSuffix = customizeRulesSheetRow.getCell(1).getStringCellValue();
+
+            //自定义excel读取到的内容
+            logger.info("suffix: " + suffix + ", newSuffix: " + newSuffix);
+
+            if (StringUtils.isBlank(suffix)) {
+                continue;
+            }
+            if (StringUtils.isBlank(newSuffix)) {
+                continue;
+            }
+            if (suffix.equals("0")) {
+                suffix = "";
+            }
+            if (newSuffix.equals("0")) {
+                newSuffix = "";
+            }
+            CustomizeRuleUnit customizeRuleUnit = new CustomizeRuleUnit(suffix, newSuffix);
+            customizeRuleUnitList.add(customizeRuleUnit);
+        }
+        logger.info("customize rule list loaded successfully! customize rule list size: " + customizeRuleUnitList.size());
+        return customizeRuleUnitList;
+    }
+
+    //读取待处理单词excel入内存
+    public static List<TaskUnit> loadTaskSheet() throws Exception {
+        Sheet taskSheet = Helper.getSheetFormExcelByPathAndName(TASK_EXCEL_NAME, TASK_EXCEL_SHEET_NAME);
+        List<TaskUnit> taskUnitList = new ArrayList<>();
+        Row taskSheetRow;
+        String value;
+        for (int i = 0; i < taskSheet.getLastRowNum() - 1; i++) {
+            taskSheetRow = taskSheet.getRow(i);
+            if (taskSheetRow == null) {
+                continue;
+            }
+            if (taskSheetRow.getCell(0) == null) {
+                continue;
+            }
+            taskSheetRow.getCell(0).setCellType(CellType.STRING);
+            value = taskSheetRow.getCell(0).getStringCellValue();
+            if (StringUtils.isBlank(value)) {
+                continue;
+            }
+
+
+            logger.debug("taskExcelSheetName: " + TASK_EXCEL_SHEET_NAME + ", rowNumber: " + (i + 1) + ", cell value: " + value);
+            TaskUnit taskUnit = new TaskUnit(i + 1, value);
+            taskUnitList.add(taskUnit);
+        }
+        logger.info("Task unit list loaded successfully! Task unit list size: " + taskUnitList.size());
+        return taskUnitList;
+    }
+
+    //预处理 任务单词 （删除字符串中非字母字符，若与原字符串不同，加入失败sheet）
+    public static List<TaskUnit> preprocessed(List<TaskUnit> taskUnitList) {
+        String refinedValue;
+        for (TaskUnit taskUnit : taskUnitList) {
+            String value = taskUnit.getValue();
+            refinedValue = value.replaceAll("[^a-zA-Z]", "");
+            logger.debug("refinedValue: " + refinedValue);
+            taskUnit.setRefinedValues(refinedValue);
+        }
+        return taskUnitList;
+    }
+
+    //匹配上不规则动词变化表的list
+    public static List<TaskUnit> compareWithIrregularVerbsSheet(List<TaskUnit> taskUnitList) {
+        String irregularVerbsMapMatchedValue = null;
+        Iterator<TaskUnit> it = taskUnitList.iterator();
+        while (it.hasNext()) {
+            TaskUnit taskUnit = it.next();
+            String value = taskUnit.getValue();
+            if (StringUtils.isNotBlank(value)) {
+                irregularVerbsMapMatchedValue = irregularVerbsMap.get(value);
+                if (StringUtils.isNotBlank(irregularVerbsMapMatchedValue)) {
+                    //匹配上的词放入单独的list
+                    TaskUnit irregularVerbsMapMatchedTaskUnit = new TaskUnit(taskUnit.getExcelRowNumber(), irregularVerbsMap.get(value));
+                    irregularVerbsMapMatchedTaskUnitList.add(irregularVerbsMapMatchedTaskUnit);
+                    it.remove();
+                }
+            }
+        }
+        logger.info("irregular verbs map matched: " + irregularVerbsMapMatchedTaskUnitList.size() + ", remained word: " + taskUnitList.size());
+        return taskUnitList;
+    }
+
+    //对比 自定义规则excel 变换，查询
+    public static List<TaskUnit> compareWithCustomizeVerbsSheet(List<TaskUnit> taskUnitList) {
+        Iterator<TaskUnit> it = taskUnitList.iterator();
+        while (it.hasNext()) {
+            TaskUnit taskUnit = it.next();
+            String value = taskUnit.getValue();
+            Set<String> translatedValuesSet = new HashSet<>();
+            for (int j = 0; j < customizeRuleUnitList.size(); j++) {
+                CustomizeRuleUnit customizeRuleUnit = customizeRuleUnitList.get(j);
+                String suffix = customizeRuleUnit.getSuffix();
+                String newSuffix = customizeRuleUnit.getNewSuffix();
+                if (value.endsWith(suffix)) {
+                    String translatedValue = value;
+                    if (StringUtils.isNotEmpty(suffix)) {
+                        int index = translatedValue.lastIndexOf(suffix);
+                        translatedValue = translatedValue.substring(0, index);
+                        translatedValue += newSuffix;
+                    } else {
+                        translatedValue += newSuffix;
+                    }
+                    translatedValuesSet.add(translatedValue);
+                    logger.debug("[" + taskUnit.getValue() + "], statisfied with suffix: [" + suffix + "]");
+                } else {
+                    logger.debug("[" + taskUnit.getValue() + "], not statisfied with suffix: [" + suffix + "]");
+                }
+            }
+            taskUnit.setTranslatedValuesSet(translatedValuesSet);
+            logger.debug("[" + taskUnit.getValue() + "], translatedValuesSet: [" + translatedValuesSet + "], taskUnit: " + taskUnit.toString());
+            //不满足自定义规则的词放入单独的list
+            if (translatedValuesSet.size() == 0) {
+                customizeRuleUnitNotMatchedTaskUnidList.add(taskUnit);
+                it.remove();
+            }
+        }
+        return taskUnitList;
+    }
+
+
     //读YAML配置文件
     public static LinkedHashMap readYAML() {
         InputStream input = Helper.class.getClassLoader().getResourceAsStream("application.yml");
@@ -414,4 +600,12 @@ public class Helper {
 
     //规定时间内没有执行完的任务的类型代码
     public static final int APP_TIMEOUT_TASK_TYPE = 5;
+
+    public static Map<String, String> irregularVerbsMap = new HashMap<>();
+
+    public static List<CustomizeRuleUnit> customizeRuleUnitList = new ArrayList<>();
+
+    public static ArrayBlockingQueue<TaskUnit> irregularVerbsMapMatchedTaskUnitList;
+
+    public static ArrayBlockingQueue<TaskUnit> customizeRuleUnitNotMatchedTaskUnidList;
 }
