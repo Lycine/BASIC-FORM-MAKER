@@ -1,6 +1,9 @@
 # 线程数
 WORKER_SIZE: 256
 
+# 版本号
+VERSION: ${fullVersion}
+
 # jsoup超时时间（秒）
 JSOUP_TIMEOUT_SECOND: 10
 

@@ -380,7 +380,7 @@ public class Helper {
         String refinedValue;
         for (TaskUnit taskUnit : taskUnitList) {
             String value = taskUnit.getValue();
-            refinedValue = value.replaceAll("[^a-zA-Z]", "");
+            refinedValue = value.replaceAll("[^a-zA-Z]", "").trim();
             logger.debug("refinedValue: " + refinedValue);
             taskUnit.setRefinedValues(refinedValue);
         }
@@ -398,9 +398,12 @@ public class Helper {
                 irregularVerbsMapMatchedValue = irregularVerbsMap.get(value);
                 if (StringUtils.isNotBlank(irregularVerbsMapMatchedValue)) {
                     //匹配上的词放入单独的list
+                    logger.debug("[" + taskUnit.getValue() + "] not statisfied with irregular verbs sheet, " + taskUnit.toString());
                     TaskUnit irregularVerbsMapMatchedTaskUnit = new TaskUnit(taskUnit.getExcelRowNumber(), irregularVerbsMap.get(value));
                     irregularVerbsMapMatchedTaskUnitList.add(irregularVerbsMapMatchedTaskUnit);
                     it.remove();
+                } else {
+                    logger.debug("[" + taskUnit.getValue() + "] statisfied with irregular verbs sheet, " + taskUnit.toString());
                 }
             }
         }
@@ -438,8 +441,11 @@ public class Helper {
             logger.debug("[" + taskUnit.getValue() + "], translatedValuesSet: [" + translatedValuesSet + "], taskUnit: " + taskUnit.toString());
             //不满足自定义规则的词放入单独的list
             if (translatedValuesSet.size() == 0) {
+                logger.debug("[" + taskUnit.getValue() + "] not statisfied with customize verbs sheet, " + taskUnit.toString());
                 customizeRuleUnitNotMatchedTaskUnidList.add(taskUnit);
                 it.remove();
+            } else {
+                logger.debug("[" + taskUnit.getValue() + "] statisfied with customize verbs sheet, " + taskUnit.toString());
             }
         }
         return taskUnitList;
@@ -455,6 +461,9 @@ public class Helper {
 
     public static void loadProperties() {
         LinkedHashMap yamlProperties = readYAML();
+
+        VERSION = (String) yamlProperties.get("VERSION");
+        logger.info("VERSION: " + VERSION);
 
         //读是否显示多个结果相关配置信息
         IS_SHOW_MULTIPLE_RESULT = (boolean) yamlProperties.get("IS_SHOW_MULTIPLE_RESULT");
@@ -529,6 +538,9 @@ public class Helper {
         logger.info("RESULT_EXCEL_SHEET_NAME: " + RESULT_EXCEL_SHEET_NAME);
 
     }
+
+    //版本号
+    public static String VERSION = "empty";
 
     //程序运行超时时间（分钟）
     public static int APP_TIMEOUT_MINUTE = 10;

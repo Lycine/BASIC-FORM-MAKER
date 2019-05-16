@@ -37,7 +37,7 @@ public class Worker implements Runnable {
         while (taskUnitQueue.size() > 0) {
             logger.info("remained taskUnitQueue size : " + taskUnitQueue.size());
             //fetch task
-            TaskUnit taskUnit = taskUnitQueue.poll();
+            TaskUnit taskUnit = fetchTask();
             if (null == taskUnit) {
                 logger.info("task is null, taskUnitQueue size: " + taskUnitQueue.size());
                 continue;
@@ -90,5 +90,9 @@ public class Worker implements Runnable {
             resultTaskUnitQueue.add(taskUnit);
         }
         logger.info("finished!");
+    }
+
+    public synchronized TaskUnit fetchTask() {
+        return taskUnitQueue.poll();
     }
 }

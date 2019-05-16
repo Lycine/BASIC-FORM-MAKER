@@ -52,6 +52,8 @@ public class App {
         ArrayBlockingQueue<TaskUnit> resultTaskUnitQueue = initTaskQueue(taskUnitList, false);
         ArrayBlockingQueue<TaskUnit> failureTaskUnitQueue = initTaskQueue(taskUnitList, false);
 
+        logger.debug("taskUnitQueueSize: " + taskUnitQueue.size() + ", taskUnitQueue: " + taskUnitQueue.toString());
+
         //创建线程池
         //定义了1个核心线程数，最大线程数1个，队列长度2个s
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
