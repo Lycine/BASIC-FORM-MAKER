@@ -9,17 +9,160 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class Helper {
 
     private static final Logger logger = LoggerFactory.getLogger(Helper.class);
+
+    //读取文件
+    public static Set<File> readFile(String filePath) {
+        Set<File> fileSet = new HashSet<>();
+        File file = new File(filePath);
+        if (!file.isDirectory()) {
+            logger.info("name = " + file.getName() + " is file, absolute path = " + file.getAbsolutePath());
+            fileSet.add(file);
+
+        } else if (file.isDirectory()) {
+            String[] fileArray = file.list();
+            logger.info("name = " + file.getName() + " is directory, absolute path = " + file.getAbsolutePath() + ", fileArray: " + Arrays.toString(fileArray));
+            for (int i = 0; i < fileArray.length; i++) {
+                File subFile = new File(filePath + System.getProperty("file.separator") + fileArray[i]);
+                if (!subFile.isDirectory()) {
+                    logger.info("name = " + subFile.getName() + " is file, absolute path = " + subFile.getAbsolutePath());
+                    fileSet.add(subFile);
+                } else if (subFile.isDirectory()) {
+                    fileSet.addAll(readFile(filePath + System.getProperty("file.separator") + fileArray[i]));
+                }
+            }
+
+        }
+        return fileSet;
+    }
+
+    //筛选出要批量处理的所有单词文件
+    public static Set<File> getPendingTaskFile(Set<File> fileSet) {
+        logger.info("fileSet siez: " + fileSet.size());
+        try {
+            Iterator<File> it = fileSet.iterator();
+            if (!it.hasNext()) {
+                File file = it.next();
+                if (!file.getName().endsWith(TASK_EXCEL_NAME)) {
+                    it.remove();
+                }
+            }
+        } catch (NoSuchElementException nsee) {
+            logger.error("符合条件的待处理文件数量为0");
+            System.exit(0);
+        }
+        return fileSet;
+    }
+
+    public static Workbook process() throws Exception {
+
+        // 本机处理
+
+        //预处理 任务单词 （删除字符串中非字母字符，若与原字符串不同，加入失败sheet）
+        taskUnitList = preprocessed(taskUnitList);
+
+        irregularVerbsMapMatchedTaskUnitList = initTaskQueue(taskUnitList, false);
+        //匹配上不规则动词变化表的list
+        taskUnitList = compareWithIrregularVerbsSheet(taskUnitList);
+
+        customizeRuleUnitNotMatchedTaskUnidList = initTaskQueue(taskUnitList, false);
+        //对比 自定义规则excel 变换，查询
+        taskUnitList = compareWithCustomizeVerbsSheet(taskUnitList);
+
+        //联网处理
+
+        ArrayBlockingQueue<TaskUnit> taskUnitQueue = initTaskQueue(taskUnitList, true);
+        ArrayBlockingQueue<TaskUnit> resultTaskUnitQueue = initTaskQueue(taskUnitList, false);
+        ArrayBlockingQueue<TaskUnit> failureTaskUnitQueue = initTaskQueue(taskUnitList, false);
+
+        logger.debug("taskUnitQueueSize: " + taskUnitQueue.size() + ", taskUnitQueue: " + taskUnitQueue.toString());
+
+        //创建线程池
+        //定义了1个核心线程数，最大线程数1个，队列长度2个s
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                WORKER_SIZE,
+                WORKER_SIZE,
+                200,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<Runnable>(WORKER_SIZE),
+                new ThreadPoolExecutor.AbortPolicy() //创建线程大于上限，抛出RejectedExecutionException异常
+        );
+
+        //分配任务
+        final long startConcurrencyTime = System.currentTimeMillis();
+        int taskSize = taskUnitQueue.size();
+        for (int i = 0; i < WORKER_SIZE; i++) {
+            executor.submit(new Worker(taskUnitQueue, resultTaskUnitQueue, failureTaskUnitQueue));
+        }
+        executor.shutdown();
+
+        long usedSeond = (System.currentTimeMillis() - startConcurrencyTime) / 1000;
+        //阻塞等待完成任务
+        while (usedSeond < APP_TIMEOUT_MINUTE * 60) {
+            if (executor.isTerminated()) {
+                long endTime = System.currentTimeMillis();
+                logger.info("all task completed! used time: " + Helper.timeAdapter((endTime - startTime) / 1000));
+                break;
+            } else {
+                int activeCount = executor.getActiveCount();
+                usedSeond = (System.currentTimeMillis() - startConcurrencyTime) / 1000;
+                int finishedTask = taskSize - taskUnitQueue.size();
+                double timePerTask = 1.0 * usedSeond / finishedTask;
+                double etaSecond = taskUnitQueue.size() * timePerTask;
+                String etaTime = Helper.timeAdapter(new Double(etaSecond).longValue());
+                Double progressRate = 1.0 * finishedTask / taskSize;
+                logger.info("[usedTime: "
+                        + Helper.timeAdapter(usedSeond)
+                        + "], [finished/all: " + finishedTask + "/" + taskSize
+                        + "], [current segment eta: " + etaTime
+                        + "],[activeWorkerSize/workerSize:" + activeCount + "/" + WORKER_SIZE
+                        + "], [progressRate: " + String.format("%.2f", progressRate * 100) + "%]");
+            }
+            Thread.sleep(1000);
+        }
+        //线程中的任务还没有结束
+        if (!executor.isTerminated()) {
+            //强制关闭所有正在进行的进程
+            executor.shutdownNow();
+            logger.warn("Use time has exceeded the APP_TIMEOUT_MINUTE(" + APP_TIMEOUT_MINUTE + "), terminated all thread, completed task write to excel");
+        }
+        logger.info("resultTaskUnitQueueSize: " + resultTaskUnitQueue.size());
+        //符合自定义规则的词写入workbook
+//        Workbook wb = Helper.taskUnitQueueWriteExcel(resultTaskUnitQueue, getWorkbookFormExcelByPath(TASK_EXCEL_NAME), TASK_EXCEL_SHEET_NAME, CUSTOMIZE_RULE_MATCHED_TASK_TYPE);
+        Workbook wb = Helper.taskUnitQueueWriteExcel(resultTaskUnitQueue, getWorkbookFormExcelByPath(CURRENT_TASK_EXCEL_NAME), TASK_EXCEL_SHEET_NAME, CUSTOMIZE_RULE_MATCHED_TASK_TYPE);
+
+        //符合不规则动词变化表的词写入workbook
+        wb = Helper.taskUnitQueueWriteExcel(irregularVerbsMapMatchedTaskUnitList, wb, TASK_EXCEL_SHEET_NAME, IRREGULAR_VERBS_MATCHED_TASK_TYPE);
+
+        //不符合符合自定义规则的词写入workbook
+        wb = Helper.taskUnitQueueWriteExcel(customizeRuleUnitNotMatchedTaskUnidList, wb, TASK_EXCEL_SHEET_NAME, CUSTOMIZE_RULE_NOT_MATCHED_TASK_TYPE);
+
+        //超时错误的词写入workbook
+        wb = Helper.taskUnitQueueWriteExcel(failureTaskUnitQueue, wb, TASK_EXCEL_SHEET_NAME, SOCKET_TIMEOUT_TASK_TYPE);
+
+        //规定时间内没有执行完的任务写入workbook
+        wb = Helper.taskUnitQueueWriteExcel(taskUnitQueue, wb, TASK_EXCEL_SHEET_NAME, APP_TIMEOUT_TASK_TYPE);
+
+
+        //清空taskUnitQueue
+        while (taskUnitQueue.size() > 0) {
+            TaskUnit taskUnit = taskUnitQueue.poll();
+            logger.warn("unfinished task: " + taskUnit.toString());
+        }
+
+        return wb;
+    }
+
 
     public static Sheet getSheetFormExcelByPathAndName(String filePath, String sheetName) throws Exception {
         Workbook wb = getWorkbookFormExcelByPath(filePath);
@@ -35,6 +178,9 @@ public class Helper {
         InputStream is = null;
         logger.info("filePath: " + filePath);
         is = Helper.class.getClassLoader().getResourceAsStream(filePath);
+        if (null == is) {
+            is = new FileInputStream(new File(filePath));
+        }
         Workbook wb = null;
         try {
             wb = new XSSFWorkbook(is);
@@ -244,7 +390,11 @@ public class Helper {
 
         legendSheet.autoSizeColumn(0, true);
         int legendSheetIndex = wb.getSheetIndex(legendSheet);
-        wb.setSheetName(legendSheetIndex, "legend");
+        try {
+            wb.setSheetName(legendSheetIndex, "legend");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         return wb;
     }
@@ -346,9 +496,11 @@ public class Helper {
         return customizeRuleUnitList;
     }
 
-    //读取待处理单词excel入内存
     public static List<TaskUnit> loadTaskSheet() throws Exception {
-        Sheet taskSheet = Helper.getSheetFormExcelByPathAndName(TASK_EXCEL_NAME, TASK_EXCEL_SHEET_NAME);
+        return loadTaskSheet(TASK_EXCEL_NAME, TASK_EXCEL_SHEET_NAME);
+    }
+
+    public static List<TaskUnit> loadTaskSheet(Sheet taskSheet, int CellNum) throws Exception {
         List<TaskUnit> taskUnitList = new ArrayList<>();
         Row taskSheetRow;
         String value;
@@ -357,11 +509,11 @@ public class Helper {
             if (taskSheetRow == null) {
                 continue;
             }
-            if (taskSheetRow.getCell(0) == null) {
+            if (taskSheetRow.getCell(CellNum) == null) {
                 continue;
             }
-            taskSheetRow.getCell(0).setCellType(CellType.STRING);
-            value = taskSheetRow.getCell(0).getStringCellValue();
+            taskSheetRow.getCell(CellNum).setCellType(CellType.STRING);
+            value = taskSheetRow.getCell(CellNum).getStringCellValue();
             if (StringUtils.isBlank(value)) {
                 continue;
             }
@@ -373,6 +525,23 @@ public class Helper {
         }
         logger.info("Task unit list loaded successfully! Task unit list size: " + taskUnitList.size());
         return taskUnitList;
+    }
+
+    public static List<TaskUnit> loadTaskSheet(Sheet taskSheet) throws Exception {
+        return loadTaskSheet(taskSheet, 0);
+    }
+
+
+    //读取待处理单词excel入内存
+    public static List<TaskUnit> loadTaskSheet(String taskExcelName, String taskExcelSheetName) throws Exception {
+        Sheet taskSheet;
+        if (StringUtils.isNotBlank(taskExcelName) && StringUtils.isNotBlank(taskExcelSheetName)) {
+            taskSheet = Helper.getSheetFormExcelByPathAndName(taskExcelName, taskExcelSheetName);
+        } else {
+            logger.error("taskExcelName or taskExcelSheetName is empty");
+            throw new Exception("读取待处理单词sheet失败，检查excel文件名和sheet名");
+        }
+        return loadTaskSheet(taskSheet);
     }
 
     //预处理 任务单词 （删除字符串中非字母字符，若与原字符串不同，加入失败sheet）
@@ -558,6 +727,8 @@ public class Helper {
 
     public static String TASK_EXCEL_NAME = "word.xlsx";
 
+    public static String CURRENT_TASK_EXCEL_NAME = "word.xlsx";
+
     //自定义规则相关配置信息
     public static String CUSTOMIZE_RULES_EXCEL_SHEET_NAME = "customizeRules";
 
@@ -620,4 +791,10 @@ public class Helper {
     public static ArrayBlockingQueue<TaskUnit> irregularVerbsMapMatchedTaskUnitList;
 
     public static ArrayBlockingQueue<TaskUnit> customizeRuleUnitNotMatchedTaskUnidList;
+
+    public static List<TaskUnit> taskUnitList;
+    //开始时间
+    public static final long startTime = System.currentTimeMillis();
+
+    public static int LOOP_TIMES = 2;
 }

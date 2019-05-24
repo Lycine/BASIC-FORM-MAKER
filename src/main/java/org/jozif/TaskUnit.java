@@ -1,5 +1,6 @@
 package org.jozif;
 
+import java.util.Objects;
 import java.util.Set;
 
 public class TaskUnit {
@@ -14,9 +15,6 @@ public class TaskUnit {
         this.value = value;
     }
 
-    public TaskUnit() {
-    }
-
     @Override
     public String toString() {
         return "TaskUnit{" +
@@ -26,6 +24,19 @@ public class TaskUnit {
                 ", translatedValuesSet=" + translatedValuesSet +
                 ", resultValuesSet=" + resultValuesSet +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof TaskUnit)) return false;
+        TaskUnit taskUnit = (TaskUnit) o;
+        return getValue().equals(taskUnit.getValue());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(value);
     }
 
     public String getRefinedValues() {

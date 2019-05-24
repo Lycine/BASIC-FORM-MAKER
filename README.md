@@ -8,10 +8,20 @@
 
 ## TODO
 
-- 增加配置项来决定筛选程序执行几遍;
+- 补全注释
+
+- 循环次数LOOP_TIMES 通过application.yml配置文件的配置项形式加载
+
+- 所有待处理任务所在的绝对路径filePath 通过application.yml配置文件的配置项形式加载
+
+- 增加配置项来决定
 
 ## Changelog
-
+- 0.1.1
+    1. 处理单词操作可以执行多遍，通过程序中写死的全局变量LOOP_TIMES来决定筛选程序执行几遍;
+    1. 可以批量处理多个文件，通过程序中写死的全局变量filePath来确定批量处理文件的所在路径;
+    1. TaskUnit 增加equals和hashcode方法
+    
 - 0.0.10
     1. 优化代码，解决并发时同一个任务可能执行多次;
     1. 增加日志，解决有些设备中translatedValuesSet的不是每个词都执行;
